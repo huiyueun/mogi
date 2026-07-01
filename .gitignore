@@ -6,5 +6,5 @@ models_goh30/
 models_goh30_smoke/
 models_tcn*/
 outputs/*
-!outputs/experiment_progress.md
+huiyu/submissions/**/*.csv
 submission_GOH30_smoke.csv

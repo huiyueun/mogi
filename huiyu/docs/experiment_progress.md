@@ -66,7 +66,7 @@ Submitted baseline score:
 
 Script:
 
-- `experiments/turn_phase_residual_experiment.py`
+- `huiyu/experiments/turn_phase_residual_experiment.py`
 
 Idea:
 
@@ -94,7 +94,7 @@ Conclusion:
 
 Script:
 
-- `experiments/goh30_regime_submissions.py`
+- `huiyu/experiments/goh30_regime_submissions.py`
 
 Generated candidates:
 
@@ -130,7 +130,7 @@ Goal:
 
 Main script:
 
-- `experiments/goh30_oof_lite.py`
+- `huiyu/experiments/goh30_oof_lite.py`
 
 Features:
 
@@ -154,7 +154,7 @@ GPU environment:
 Command:
 
 ```bash
-python experiments/goh30_oof_lite.py \
+python huiyu/experiments/goh30_oof_lite.py \
   --folds 3 \
   --epochs 10 \
   --device cuda \
@@ -179,7 +179,7 @@ Conclusion:
 
 Script:
 
-- `experiments/goh30_component_submissions.py`
+- `huiyu/experiments/goh30_component_submissions.py`
 
 Generated component predictions:
 
@@ -230,8 +230,8 @@ Implemented so far:
 
 Scripts:
 
-- `experiments/search_cluster_moe.py`
-- `experiments/make_cluster_moe_submissions.py`
+- `huiyu/experiments/search_cluster_moe.py`
+- `huiyu/experiments/make_cluster_moe_submissions.py`
 
 GRU/ODE-only OOF-lite results:
 
@@ -253,7 +253,7 @@ Conclusion:
 Command:
 
 ```bash
-python experiments/goh30_oof_lite.py \
+python huiyu/experiments/goh30_oof_lite.py \
   --folds 3 \
   --epochs 10 \
   --include-h \
@@ -289,7 +289,7 @@ Conclusion:
 
 Script:
 
-- `experiments/search_full_moe_from_oof.py`
+- `huiyu/experiments/search_full_moe_from_oof.py`
 
 Seed 42 OOF:
 
@@ -343,7 +343,7 @@ Conclusion:
 
 Script:
 
-- `experiments/stabilize_moe_candidates.py`
+- `huiyu/experiments/stabilize_moe_candidates.py`
 
 Generated stable candidates:
 
@@ -380,7 +380,7 @@ Conclusion:
 
 Script:
 
-- `experiments/learned_oof_stacking.py`
+- `huiyu/experiments/learned_oof_stacking.py`
 
 Goal:
 
@@ -398,7 +398,7 @@ Implemented stackers:
 Command:
 
 ```bash
-.venv-cu128/bin/python experiments/learned_oof_stacking.py \
+.venv-cu128/bin/python huiyu/experiments/learned_oof_stacking.py \
   --oof-dirs \
     outputs/goh30_oof_lite_gru_ode_h10_6_cuda \
     outputs/goh30_oof_lite_gru_ode_h10_6_seed777_cuda \
@@ -489,29 +489,29 @@ Learned stacking fallback:
 
 Core OOF / prediction:
 
-- `experiments/goh30_oof_lite.py`
-- `experiments/goh30_component_submissions.py`
-- `experiments/train_tcn_submissions.py`
+- `huiyu/experiments/goh30_oof_lite.py`
+- `huiyu/experiments/goh30_component_submissions.py`
+- `huiyu/experiments/train_tcn_submissions.py`
 
 Search / MoE:
 
-- `experiments/search_oof_blends.py`
-- `experiments/search_cluster_moe.py`
-- `experiments/search_goh_lite_weights.py`
-- `experiments/search_full_moe_from_oof.py`
-- `experiments/learned_oof_stacking.py`
+- `huiyu/experiments/search_oof_blends.py`
+- `huiyu/experiments/search_cluster_moe.py`
+- `huiyu/experiments/search_goh_lite_weights.py`
+- `huiyu/experiments/search_full_moe_from_oof.py`
+- `huiyu/experiments/learned_oof_stacking.py`
 
 Submission generation:
 
-- `experiments/make_cluster_moe_submissions.py`
-- `experiments/make_h_heavy_submissions.py`
-- `experiments/stabilize_moe_candidates.py`
-- `experiments/stabilize_tcn_candidates.py`
-- `experiments/blend_second_place_expert.py`
+- `huiyu/experiments/make_cluster_moe_submissions.py`
+- `huiyu/experiments/make_h_heavy_submissions.py`
+- `huiyu/experiments/stabilize_moe_candidates.py`
+- `huiyu/experiments/stabilize_tcn_candidates.py`
+- `huiyu/experiments/blend_second_place_expert.py`
 
 Reporting:
 
-- `experiments/foldwise_oof_report.py`
+- `huiyu/experiments/foldwise_oof_report.py`
 
 ## 15. Remaining Ideas
 
@@ -533,7 +533,7 @@ Motivation:
 OOF-lite command:
 
 ```bash
-.venv-cu128/bin/python experiments/goh30_oof_lite.py \
+.venv-cu128/bin/python huiyu/experiments/goh30_oof_lite.py \
   --folds 3 \
   --epochs 10 \
   --device cuda \
@@ -560,14 +560,14 @@ Conclusion:
 Full TCN training:
 
 ```bash
-.venv-cu128/bin/python experiments/train_tcn_submissions.py \
+.venv-cu128/bin/python huiyu/experiments/train_tcn_submissions.py \
   --device cuda \
   --epochs 30 \
   --seeds 5 \
   --models-dir models_tcn_e30_s5 \
   --out-dir outputs/goh30_tcn_e30_s5_submissions
 
-.venv-cu128/bin/python experiments/train_tcn_submissions.py \
+.venv-cu128/bin/python huiyu/experiments/train_tcn_submissions.py \
   --device cuda \
   --epochs 30 \
   --seeds 5 \
@@ -580,7 +580,7 @@ Stabilized TCN candidates:
 
 Script:
 
-- `experiments/stabilize_tcn_candidates.py`
+- `huiyu/experiments/stabilize_tcn_candidates.py`
 
 Generated:
 
@@ -619,7 +619,7 @@ Conclusion:
 
 Script:
 
-- `experiments/blend_second_place_expert.py`
+- `huiyu/experiments/blend_second_place_expert.py`
 
 Source:
 
