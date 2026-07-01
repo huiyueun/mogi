@@ -19,9 +19,13 @@ SPECS = [
 
 def exec_notebook_cells(notebook: Path, root: Path) -> dict[str, object]:
     nb = json.loads(notebook.read_text(encoding="utf-8"))
-    ns: dict[str, object] = {"__name__": "__second_phys_oof__"}
+    ns: dict[str, object] = {
+        "__name__": "__second_phys_oof__",
+        "tqdm": lambda iterable=None, *args, **kwargs: iterable if iterable is not None else [],
+    }
     for idx in NOTEBOOK_CELLS:
         src = "".join(nb["cells"][idx].get("source", []))
+        src = src.replace("from tqdm.auto import tqdm\n", "")
         exec(compile(src, f"{notebook}:cell{idx}", "exec"), ns)
 
     # The shared notebook searches for data/ by default, but this repo keeps the
