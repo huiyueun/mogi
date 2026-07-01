@@ -21,8 +21,12 @@
 - `huiyu/experiments/`
   - 개인 실험 스크립트 모음
   - OOF-lite, GOH30 컴포넌트 예측, MoE 탐색, TCN/Transformer-lite, 2등 expert blend 포함
-- `huiyu/docs/experiment_progress.md`
-  - 전체 실험 흐름, 제출 점수, 실패/성공 결론 정리
+- `huiyu/docs/`
+  - `01_experiment_progress.md`: 전체 실험 흐름, 제출 점수, 실패/성공 결론 정리
+  - `02_top_expert_comparison_view_guide.md`: 1등/2등 예측 차이 그림과 표를 보는 순서
+  - `03_top_expert_cause_analysis.md`: 1등/2등 예측 차이가 생긴 원인 가설
+  - `04_second_component_analysis.md`: 2등 base/phys/final 구성요소 분해 분석
+  - `05_final_ensemble_conclusion.md`: 왜 1등 앙상블에 2등 앙상블을 더했는지 최종 결론
 - `huiyu/submissions/`
   - 주요 제출 CSV 로컬 복사본
   - 팀 레포가 무거워지지 않도록 CSV는 git 추적에서 제외
