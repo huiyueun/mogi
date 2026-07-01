@@ -1,157 +1,159 @@
-# Mosquito Trajectory Experiment Progress
+# 모기 궤적 예측 실험 진행 정리
 
-Date: 2026-07-01
+작성일: 2026-07-01
 
-## 0. Executive Summary
+## 0. 요약
 
-Current best confirmed submission:
+현재 확인된 최고 제출:
 
-| submission | Public | Private |
+| 제출 파일 | 공개 점수 | 비공개 점수 |
 | --- | ---: | ---: |
 | `outputs/second_place_expert_blends/confirmed_ode_heavy_800_second200.csv` | 0.7034 | 0.7042 |
 
-Best confirmed pipeline:
+현재 최고 절차:
 
-- Start from GOH30 component predictions.
-- Use ODE-heavy GOH30 blend:
+- 1등 GOH30 코드에서 구성요소별 예측을 생성
+- GOH30을 ODE 강화 비율로 다시 섞음
   - GRU 20%
   - ODE 60%
-  - HyperPhysics 20%
-- Restore the 2nd-place prediction from `best_solve/_[private 2nd] 코드 공유.ipynb`.
-- Final blend:
-  - 80% ODE-heavy GOH30
-  - 20% 2nd-place prediction
+  - 물리 기반 H 모델 20%
+- 2등 코드의 최종 예측을 노트북 내 압축값에서 복원
+- 최종 제출:
+  - 80% GOH30 ODE 강화 예측
+  - 20% 2등 코드 예측
 
-Main lessons:
+핵심 결론:
 
-- ODE-heavy was the only GOH30-internal change that transferred positively to LB.
-- H-heavy, KMeans MoE, learned stacking, regime weighting, cluster feature injection, TCN, and Transformer-lite did not improve LB.
-- The strongest improvement came from prediction blending with another LB-verified expert, not from additional local OOF tuning.
+- GOH30 내부 변경 중 리더보드에서 실제로 살아남은 것은 ODE 강화뿐이었다.
+- H 강화, KMeans 전문가 혼합, 학습형 스태킹, 구간별 가중치, 클러스터 특징 주입은 외부폴드 검증에서는 좋아 보였지만 리더보드로 전이되지 않았다.
+- TCN과 경량 트랜스포머도 외부폴드 검증에서는 개선됐지만 리더보드에서는 개선되지 않았다.
+- 가장 큰 개선은 새 모델 학습이 아니라, 리더보드에서 이미 검증된 2등 코드 예측과의 예측 블렌딩에서 나왔다.
 
-## 1. Baseline Reproduction
+## 1. 베이스라인 재현
 
-Base code:
+베이스 코드:
 
 - `best_solve/[Private_LB 1st] 코드 공유.ipynb`
 
-Model structure:
+모델 구조:
 
-- GOH30 = GRU 10 seeds + Neural ODE 10 seeds + HyperPhysics 10 seeds
-- Original ensemble is equal-weighted over all 30 models.
-- Architecture-level original weight:
+- GOH30 = GRU 10개 + 신경 ODE 10개 + 물리 기반 H 모델 10개
+- 원본 제출은 30개 모델을 등가중 평균
+- 구조별 원본 비율:
   - GRU 33.3%
   - ODE 33.3%
-  - HyperPhysics 33.3%
+  - 물리 기반 H 모델 33.3%
 
-Generated base artifacts:
+생성된 주요 산출물:
 
 - `models_goh30/phaseG_full_0.pt` ... `phaseG_full_9.pt`
 - `models_goh30/phaseODE_full_0.pt` ... `phaseODE_full_9.pt`
 - `models_goh30/phaseH_full_0.pt` ... `phaseH_full_9.pt`
 - `submission_GOH30.csv`
 
-Committed:
+커밋:
 
-- Commit `b9c6bd1 Add GOH30 base submission`
-- Included only `submission_GOH30.csv`.
-- Model weights and experiment outputs were intentionally left untracked.
+- `b9c6bd1 Add GOH30 base submission`
+- 커밋에는 `submission_GOH30.csv`만 포함
+- 모델 가중치와 실험 출력물은 의도적으로 제외
 
-Submitted baseline score:
+제출 점수:
 
-| submission | Public | Private |
+| 제출 파일 | 공개 점수 | 비공개 점수 |
 | --- | ---: | ---: |
 | `submission_GOH30.csv` | 0.7020 | 0.7025 |
 
-## 2. Constant Velocity / Kalman Baseline Experiment
+## 2. 등속 외삽 / Kalman 약한 베이스 실험
 
-Script:
+스크립트:
 
 - `huiyu/experiments/turn_phase_residual_experiment.py`
 
-Idea:
+아이디어:
 
-- Start from constant velocity:
+- 등속 외삽:
   - `pred = last + 2 * (last - prev)`
-- Add Kalman CV, residual models, turn/phase features, and regime gates.
+- Kalman 등속 모델, 잔차 모델, 회전/단계 특징, 구간 게이트를 추가
 
-OOF results:
+외부폴드 검증 결과:
 
-| candidate | OOF hit |
+| 후보 | 검증 적중률 |
 | --- | ---: |
-| constant velocity | 0.5788 |
-| Kalman CV | 0.5964 |
-| CV residual + turn/phase | 0.5969 |
-| Kalman residual + turn/phase | 0.5985 |
-| blend CV/Kalman residual | 0.6025 |
-| blend + high_speed Kalman gate | 0.6124 |
+| 등속 외삽 | 0.5788 |
+| Kalman 등속 모델 | 0.5964 |
+| 등속 잔차 + 회전/단계 | 0.5969 |
+| Kalman 잔차 + 회전/단계 | 0.5985 |
+| 등속/Kalman 잔차 블렌딩 | 0.6025 |
+| 블렌딩 + 고속 구간 Kalman 게이트 | 0.6124 |
 
-Conclusion:
+결론:
 
-- Regime-based gating helped the weak CV baseline.
-- The same Kalman high-speed idea did not meaningfully improve full GOH30.
+- 약한 등속/Kalman 베이스에서는 구간 기반 구분이 도움이 됐다.
+- 하지만 같은 아이디어는 강한 GOH30에는 거의 전이되지 않았다.
 
-## 3. Kalman Postprocessing on GOH30
+## 3. GOH30 Kalman 후보정
 
-Script:
+스크립트:
 
 - `huiyu/experiments/goh30_regime_submissions.py`
 
-Generated candidates:
+생성 후보:
 
 - `outputs/goh30_regime_submissions/case00_goh30_original.csv`
 - `case01_high_speed_kalman_005.csv`
 - `case02_high_speed_kalman_010.csv`
 - `case03_high_speed_kalman_015.csv`
 - `case04_high_speed_kalman_020.csv`
-- etc.
 
-Submitted scores:
+제출 점수:
 
-| submission | Public | Private |
+| 제출 파일 | 공개 점수 | 비공개 점수 |
 | --- | ---: | ---: |
-| original GOH30 | 0.7020 | 0.7025 |
-| high_speed Kalman 5% | 0.7022 | 0.7026 |
-| high_speed Kalman 10% | 0.7020 | 0.7021 |
-| high_speed Kalman 15% | 0.7016 | 0.7018 |
-| high_speed Kalman 20% | 0.7018 | 0.7019 |
+| GOH30 원본 | 0.7020 | 0.7025 |
+| 고속 구간 Kalman 5% | 0.7022 | 0.7026 |
+| 고속 구간 Kalman 10% | 0.7020 | 0.7021 |
+| 고속 구간 Kalman 15% | 0.7016 | 0.7018 |
+| 고속 구간 Kalman 20% | 0.7018 | 0.7019 |
 
-Conclusion:
+결론:
 
-- Kalman blend has only a very weak signal.
-- 5% was slightly better, but the effect is too small to rely on.
-- Higher Kalman weights clearly hurt.
+- Kalman 블렌딩 신호는 매우 약했다.
+- 5%는 아주 조금 좋아졌지만 신뢰하기 어려운 수준이었다.
+- 더 큰 Kalman 비율은 점수를 떨어뜨렸다.
 
-## 4. OOF-lite Infrastructure
+## 4. 외부폴드 간이 검증 절차
 
-Goal:
+목표:
 
-- Avoid using daily submissions as the primary experiment loop.
-- Build a local OOF-lite validation pipeline to test ensemble and MoE ideas before submission.
+- 제출 제한에 의존하지 않고 로컬에서 후보를 먼저 거르기
+- GOH30의 GRU/ODE/H 구성요소와 앙상블 아이디어를 빠르게 검증
 
-Main script:
+메인 스크립트:
 
 - `huiyu/experiments/goh30_oof_lite.py`
 
-Features:
+기능:
 
-- 3-fold OOF-lite
-- GRU OOF prediction
-- ODE OOF prediction
-- Optional HyperPhysics OOF prediction via `--include-h`
-- CV/Kalman OOF prediction
-- Regime score report
+- 3개 폴드 기반 간이 외부폴드 검증
+- GRU 외부폴드 예측
+- ODE 외부폴드 예측
+- `--include-h`로 물리 기반 H 모델 외부폴드 예측
+- `--include-tcn`으로 TCN 전문가 외부폴드 예측
+- `--include-transformer`로 경량 트랜스포머 외부폴드 예측
+- CV/Kalman 기준 예측
+- 구간별 점수 보고서
 
-GPU environment:
+GPU 환경:
 
-- Created `.venv-cu128`
-- Installed PyTorch `2.11.0+cu128`
-- Confirmed RTX 5070 support:
-  - GPU capability `(12, 0)`
-  - `sm_120` appears in `torch.cuda.get_arch_list()`
+- `.venv-cu128`
+- PyTorch `2.11.0+cu128`
+- RTX 5070 지원 확인
+  - 장치 연산 능력 `(12, 0)`
+  - `sm_120` 포함
 
-## 5. GRU/ODE OOF-lite Results
+## 5. GRU/ODE 간이 외부폴드 검증 결과
 
-Command:
+명령:
 
 ```bash
 python huiyu/experiments/goh30_oof_lite.py \
@@ -161,96 +163,100 @@ python huiyu/experiments/goh30_oof_lite.py \
   --out-dir outputs/goh30_oof_lite_gru_ode10_cuda
 ```
 
-Key OOF results:
+주요 결과:
 
-| candidate | OOF hit |
+| 후보 | 검증 적중률 |
 | --- | ---: |
 | GRU | 0.6263 |
 | ODE | 0.6316 |
 | GRU/ODE 50:50 | 0.6298 |
-| best global GRU/ODE weight, GRU15/ODE85 | 0.6319 |
+| GRU15/ODE85 | 0.6319 |
 
-Conclusion:
+결론:
 
-- ODE is stronger than GRU in this OOF-lite setup.
-- ODE-heavy weighting is better than 50:50.
+- 간이 외부폴드 검증에서는 ODE가 GRU보다 강했다.
+- GRU/ODE 50:50보다 ODE 강화 비율이 나았다.
 
-## 6. Full GOH30 Component Predictions
+## 6. GOH30 구성요소 예측과 ODE 강화
 
-Script:
+스크립트:
 
 - `huiyu/experiments/goh30_component_submissions.py`
 
-Generated component predictions:
+생성한 구성요소 예측:
 
 - `outputs/goh30_component_submissions/pred_gru.npy`
 - `pred_ode.npy`
 - `pred_h.npy`
 - `pred_equal.npy`
 
-Generated ODE-heavy submissions:
+생성 제출 후보:
 
+- `case00_equal_goh30.csv`
 - `case01_ode_heavy_g25_o50_h25.csv`
 - `case02_ode_heavy_g20_o60_h20.csv`
 - `case03_ode_heavy_g15_o65_h20.csv`
 - `case04_ode_heavy_g15_o70_h15.csv`
-- etc.
 
-Submitted score:
+제출 점수:
 
-| submission | Public | Private |
+| 제출 파일 | 공개 점수 | 비공개 점수 |
 | --- | ---: | ---: |
 | `case02_ode_heavy_g20_o60_h20.csv` | 0.7018 | 0.7033 |
 
-Conclusion:
+결론:
 
-- ODE-heavy signal transferred to Private LB.
-- Public decreased slightly, but Private improved by +0.0008 over original.
+- ODE 강화는 실제 리더보드로 전이된 첫 개선이었다.
+- 공개 점수는 약간 낮아졌지만 비공개 점수는 원본 대비 +0.0008 개선됐다.
 
-## 7. PPT Ideas Implemented
+## 7. PPT 아이디어 적용 결과
 
-Proposal ideas:
+PPT 아이디어:
 
-- Scene clustering
-- Noise criteria
-- Mixture of Experts
-- Expert-specific weighting
+- 장면 클러스터링
+- 노이즈 기준
+- 전문가 혼합
+- 전문가별 가중치
 
-Implemented so far:
+적용 방식:
 
-| PPT idea | Implementation |
+| PPT 아이디어 | 구현 |
 | --- | --- |
-| Scene clustering | KMeans over trajectory features |
-| Noise criteria | high_speed, high_noise, high_acc, hard_turn, vertical_change regimes |
-| Mixture of Experts | GRU/ODE/H architecture weighting |
-| Expert gating | Cluster-specific GRU/ODE/H weights |
-| Stability check | Foldwise OOF and multi-seed OOF comparison |
+| 장면 클러스터링 | 궤적 특징 기반 KMeans |
+| 노이즈 기준 | 고속, 고노이즈, 고가속, 급회전, 수직 변화 |
+| 전문가 혼합 | GRU/ODE/H 비율 조정 |
+| 전문가 게이팅 | 클러스터별 GRU/ODE/H 가중치 |
+| 안정성 확인 | 폴드별 외부폴드 검증, 시드별 비교 |
 
-## 8. Cluster MoE with GRU/ODE
+결론:
 
-Scripts:
+- 약한 베이스에서는 의미가 있었지만, GOH30 위에서는 대부분 리더보드 개선으로 이어지지 않았다.
+
+## 8. GRU/ODE 클러스터 전문가 혼합
+
+스크립트:
 
 - `huiyu/experiments/search_cluster_moe.py`
 - `huiyu/experiments/make_cluster_moe_submissions.py`
 
-GRU/ODE-only OOF-lite results:
+외부폴드 검증 결과:
 
-| candidate | OOF hit |
+| 후보 | 검증 적중률 |
 | --- | ---: |
 | ODE | 0.6316 |
-| global GRU15/ODE85 | 0.6319 |
-| KMeans5 cluster MoE | 0.6324 |
-| KMeans6 cluster MoE | 0.6325 |
-| KMeans8 cluster MoE | 0.6327 |
+| 전체 GRU15/ODE85 | 0.6319 |
+| KMeans5 클러스터 전문가 혼합 | 0.6324 |
+| KMeans6 클러스터 전문가 혼합 | 0.6325 |
+| KMeans8 클러스터 전문가 혼합 | 0.6327 |
 
-Conclusion:
+결론:
 
-- Cluster-based weighting improved over global ODE-heavy.
-- This supported the PPT Scene clustering + MoE hypothesis.
+- 외부폴드 검증에서는 클러스터별 가중치가 좋아 보였다.
+- 하지만 이후 GOH 전체 K8 전문가 혼합이 리더보드에서 크게 실패하면서 클러스터 게이팅은 제출 우선순위에서 제외했다.
 
-## 9. H-included OOF-lite
+## 9. H 포함 간이 외부폴드 검증과 H 강화 실패
 
-Command:
+명령:
 
 ```bash
 python huiyu/experiments/goh30_oof_lite.py \
@@ -262,275 +268,108 @@ python huiyu/experiments/goh30_oof_lite.py \
   --out-dir outputs/goh30_oof_lite_gru_ode_h10_6_cuda
 ```
 
-Key OOF results:
+외부폴드 검증 결과:
 
-| candidate | OOF hit |
+| 후보 | 검증 적중률 |
 | --- | ---: |
-| H only | 0.6533 |
-| GOH-lite equal | 0.6432 |
+| H 단독 | 0.6533 |
+| GOH-lite 등가중 | 0.6432 |
 | G20/O60/H20 | 0.6400 |
 | G15/O65/H20 | 0.6403 |
-| best H-heavy G10/O05/H85 | 0.6544 |
+| H 강화 G10/O05/H85 | 0.6544 |
 
-Foldwise for H-heavy:
+결론:
 
-| candidate | fold1 | fold2 | fold3 | all |
-| --- | ---: | ---: | ---: | ---: |
-| G10/O05/H85 | 0.6557 | 0.6646 | 0.6430 | 0.6544 |
-| H only | 0.6548 | 0.6646 | 0.6406 | 0.6533 |
-| GOH-lite equal | 0.6419 | 0.6526 | 0.6352 | 0.6432 |
+- 간이 외부폴드 검증에서는 H가 매우 강해 보였다.
+- 하지만 H 강화/K8 전문가 혼합은 실제 리더보드에서 실패했다.
 
-Conclusion:
+## 10. H 포함 클러스터 전문가 혼합
 
-- H is much stronger in OOF-lite than GRU/ODE.
-- H-heavy ensembles are much better than equal-weight GOH-lite.
-
-## 10. H-included Cluster MoE
-
-Script:
+스크립트:
 
 - `huiyu/experiments/search_full_moe_from_oof.py`
-
-Seed 42 OOF:
-
-| candidate | OOF hit |
-| --- | ---: |
-| equal | 0.6432 |
-| H only | 0.6533 |
-| H-heavy G10/O05/H85 | 0.6544 |
-| KMeans5 GOH MoE | 0.6563 |
-| KMeans6 GOH MoE | 0.6565 |
-| KMeans8 GOH MoE | 0.6570 |
-
-Seed 42 foldwise:
-
-| candidate | fold1 | fold2 | fold3 | all |
-| --- | ---: | ---: | ---: | ---: |
-| KMeans8 GOH MoE | 0.6563 | 0.6685 | 0.6463 | 0.6570 |
-| KMeans6 GOH MoE | 0.6557 | 0.6676 | 0.6463 | 0.6565 |
-| KMeans5 GOH MoE | 0.6554 | 0.6685 | 0.6451 | 0.6563 |
-| H-heavy G10/O05/H85 | 0.6557 | 0.6646 | 0.6430 | 0.6544 |
-| equal | 0.6419 | 0.6526 | 0.6352 | 0.6432 |
-
-Seed 777 OOF:
-
-| candidate | OOF hit |
-| --- | ---: |
-| equal | 0.6437 |
-| H only | 0.6528 |
-| H-heavy G10/O05/H85 | 0.6535 |
-| KMeans5 GOH MoE | 0.6559 |
-| KMeans6 GOH MoE | 0.6562 |
-| KMeans8 GOH MoE | 0.6572 |
-
-Seed 777 foldwise:
-
-| candidate | fold1 | fold2 | fold3 | all |
-| --- | ---: | ---: | ---: | ---: |
-| KMeans8 GOH MoE | 0.6548 | 0.6661 | 0.6508 | 0.6572 |
-| KMeans6 GOH MoE | 0.6548 | 0.6649 | 0.6490 | 0.6562 |
-| KMeans5 GOH MoE | 0.6533 | 0.6655 | 0.6490 | 0.6559 |
-| H-heavy G10/O05/H85 | 0.6515 | 0.6610 | 0.6481 | 0.6535 |
-| equal | 0.6437 | not listed above | not listed above | 0.6437 |
-
-Conclusion:
-
-- KMeans8 GOH MoE is the strongest local candidate across two OOF seeds.
-- The improvement over equal is large and fold-stable.
-- This is currently the strongest PPT-aligned method.
-
-## 11. Stability / Movement Report
-
-Script:
-
 - `huiyu/experiments/stabilize_moe_candidates.py`
 
-Generated stable candidates:
+외부폴드 검증 결과:
 
-- `outputs/goh30_stable_moe_submissions/avg_seed42_seed777_k8.csv`
-- `avg_seed777_k5_k6_k8.csv`
-- `avg_seed42_k5_k6_k8.csv`
-- `avg_all_k5_k6_k8_both_seeds.csv`
-- `blend_seed777_k8_90_equal_10.csv`
-- `blend_seed777_k8_80_equal_20.csv`
-- `blend_avg_k8_90_equal_10.csv`
+| 후보 | 시드42 검증 | 시드777 검증 |
+| --- | ---: | ---: |
+| 등가중 | 0.6432 | 0.6437 |
+| H 단독 | 0.6533 | 0.6528 |
+| H 강화 | 0.6544 | 0.6535 |
+| KMeans5 GOH 전문가 혼합 | 0.6563 | 0.6559 |
+| KMeans6 GOH 전문가 혼합 | 0.6565 | 0.6562 |
+| KMeans8 GOH 전문가 혼합 | 0.6570 | 0.6572 |
 
-Seed42 vs seed777 K8 difference:
+제출 결과:
 
-| comparison | mean shift | p90 shift | >1cm count |
-| --- | ---: | ---: | ---: |
-| seed42 K8 vs seed777 K8 | 0.000225 | 0.000555 | 0 |
+| 제출 파일 | 공개 점수 | 비공개 점수 |
+| --- | ---: | ---: |
+| `avg_seed42_seed777_k8.csv` | 0.6966 | 0.6965 |
 
-Candidate shift vs original equal:
+결론:
 
-| candidate | mean shift | p90 shift | >1cm count |
-| --- | ---: | ---: | ---: |
-| seed777 K8 | 0.001200 | 0.002340 | 28 |
-| avg seed42/777 K8 | 0.001236 | 0.002373 | 26 |
-| blend seed777 K8 90% + equal 10% | 0.001080 | 0.002106 | 17 |
-| blend seed777 K8 80% + equal 20% | 0.000960 | 0.001872 | 9 |
+- K8 전문가 혼합은 외부폴드 검증에서는 매우 강했지만 리더보드에서 크게 무너졌다.
+- 외부폴드 검증과 리더보드 분포 차이가 크다는 중요한 신호였다.
+- 이후 H 강화와 클러스터 게이팅은 폐기했다.
 
-Conclusion:
+## 11. 학습형 외부폴드 스태킹
 
-- K8 MoE is seed-stable.
-- The candidate does not move predictions aggressively relative to equal GOH30.
-- Averaging seed42 and seed777 K8 is a reasonable stability-oriented candidate.
-
-## 12. Learned OOF Stacking
-
-Script:
+스크립트:
 
 - `huiyu/experiments/learned_oof_stacking.py`
 
-Goal:
+아이디어:
 
-- Learn per-sample GRU/ODE/H weights from OOF predictions and trajectory features.
-- Validate the meta model with an additional internal stack-fold split, not by fitting directly on all OOF labels.
-- Compare seed42 and seed777 OOF runs for stability.
+- 외부폴드 예측과 궤적 특징으로 샘플별 GRU/ODE/H 가중치를 학습
+- 내부 스태킹용 폴드 분할로 메타 모델 과적합을 줄이려 시도
 
-Implemented stackers:
+결과:
 
-- Logistic regression classifier over the best expert label.
-- HistGradientBoosting classifier over the best expert label.
-- Predicted class probabilities are used as GRU/ODE/H weights.
-- Weights are blended with stable priors such as global H-heavy and H85.
-
-Command:
-
-```bash
-.venv-cu128/bin/python huiyu/experiments/learned_oof_stacking.py \
-  --oof-dirs \
-    outputs/goh30_oof_lite_gru_ode_h10_6_cuda \
-    outputs/goh30_oof_lite_gru_ode_h10_6_seed777_cuda \
-  --out-dir outputs/goh30_learned_stacking
-```
-
-Best learned stacking stability:
-
-| candidate | mean OOF hit | std | min | max |
+| 후보 | 평균 검증 | 표준편차 | 최솟값 | 최댓값 |
 | --- | ---: | ---: | ---: | ---: |
-| HGB global prior alpha 25% | 0.65485 | 0.00035 | 0.6546 | 0.6551 |
-| HGB H85 prior alpha 50% | 0.65460 | 0.00014 | 0.6545 | 0.6547 |
-| HGB H75 prior alpha 25% | 0.65445 | 0.00021 | 0.6543 | 0.6546 |
-| global H-heavy best | 0.65440 | 0.00000 | 0.6544 | 0.6544 |
+| HGB 전체 사전비율 alpha25 | 0.65485 | 0.00035 | 0.6546 | 0.6551 |
+| HGB H85 사전비율 alpha50 | 0.65460 | 0.00014 | 0.6545 | 0.6547 |
+| 전체 H 강화 | 0.65440 | 0.00000 | 0.6544 | 0.6544 |
 
-Comparison against existing best:
+결론:
 
-| method | seed42 OOF | seed777 OOF | conclusion |
-| --- | ---: | ---: | --- |
-| global H-heavy | 0.6544 | 0.6544 | strong simple baseline |
-| learned stacking best | 0.6551 | 0.6546 | small, stable gain over H-heavy |
-| KMeans8 GOH MoE | 0.6570 | 0.6572 | still stronger than learned stacking |
+- 외부폴드 검증에서는 H 강화보다 약간 좋았다.
+- 하지만 K8 전문가 혼합보다 약했고, H 강화 계열이 리더보드에서 실패했기 때문에 제출 후보에서 제외했다.
 
-Generated learned stacking candidates:
+## 12. 학습 전 샘플 가중치 / 클러스터 특징 주입
 
-- `outputs/goh30_learned_stacking/avg_seeds_hgb_global_a025.csv`
-- `outputs/goh30_learned_stacking/avg_seeds_hgb_h85_a050.csv`
-- `outputs/goh30_learned_stacking/avg_seeds_hgb_h75_a025.csv`
+추가한 옵션:
 
-Shift report:
+- `--weight-mode regime-soft`
+- `--weight-mode regime-strong`
+- `--weight-mode hard-final`
+- `--interior-weight`
+- `--cluster-feature-mode`
+- `--cluster-weight-mode`
 
-| candidate | mean shift vs equal | p90 shift | >1cm count |
+대표 결과:
+
+| 실험 | ODE | GRU | GRU/ODE |
 | --- | ---: | ---: | ---: |
-| avg HGB global alpha25 | 0.001040 | 0.001998 | 28 |
-| avg HGB H85 alpha50 | 0.000941 | 0.001795 | 31 |
-| avg HGB H75 alpha25 | 0.000943 | 0.001814 | 20 |
+| 기존 GRU/ODE 외부폴드 검증 | 0.6316 | 0.6263 | 0.6298 |
+| 약한 구간 가중치 + 내부 구간 0.7 | 0.6316 | 0.6254 | 0.6286 |
+| 클러스터 k6 특징 + 약한 가중치 | 0.6311 | 0.6240 | 0.6284 |
 
-Conclusion:
+결론:
 
-- Learned stacking is valid and stable, but the gain is smaller than cluster MoE.
-- It should not replace K8 cluster GOH MoE as the main submission candidate yet.
-- It can be kept as a fallback or used later as an additional feature/candidate inside a larger ensemble.
+- 구간별 샘플 가중치는 개선이 없었다.
+- 클러스터 특징 주입과 클러스터별 샘플 가중치도 개선되지 않았다.
+- 학습 전 단계의 PPT 아이디어는 GOH30에는 효과가 없었다.
 
-## 13. Current Best Submission Candidates
+## 13. TCN 전문가
 
-Known LB-confirmed improvement:
+스크립트:
 
-1. `outputs/goh30_component_submissions/case02_ode_heavy_g20_o60_h20.csv`
-   - Public 0.7018
-   - Private 0.7033
-
-Strongest local OOF candidate:
-
-1. `outputs/goh30_full_moe_seed777_submissions/k8_cluster_goh_moe.csv`
-   - Seed777 local OOF 0.6572
-
-Most stable local candidate:
-
-1. `outputs/goh30_stable_moe_submissions/avg_seed42_seed777_k8.csv`
-   - K8 is strong in both OOF seeds.
-   - Seed42/777 K8 predictions are very close.
-   - Submitted score later showed this did not transfer:
-     - Public 0.6966
-     - Private 0.6965
-   - This invalidates K8/H-heavy MoE as a submission-priority method.
-
-More conservative stable candidate:
-
-1. `outputs/goh30_stable_moe_submissions/blend_avg_k8_90_equal_10.csv`
-   - Slightly closer to original equal GOH30.
-
-Recommendation if only one future submission is allowed:
-
-- Do not submit K8/H-heavy MoE again.
-- The strongest LB-confirmed candidate remains `outputs/goh30_component_submissions/case02_ode_heavy_g20_o60_h20.csv`.
-
-Recommendation if two future submissions are allowed:
-
-1. Re-test only conservative ODE-heavy or near-original blends.
-2. Avoid H-heavy/K8 cluster candidates unless a better validation scheme confirms them.
-
-Learned stacking fallback:
-
-1. `outputs/goh30_learned_stacking/avg_seeds_hgb_global_a025.csv`
-   - Stable, but weaker than K8 cluster MoE in local OOF.
-
-## 14. Implemented Scripts
-
-Core OOF / prediction:
-
-- `huiyu/experiments/goh30_oof_lite.py`
-- `huiyu/experiments/goh30_component_submissions.py`
 - `huiyu/experiments/train_tcn_submissions.py`
-
-Search / MoE:
-
-- `huiyu/experiments/search_oof_blends.py`
-- `huiyu/experiments/search_cluster_moe.py`
-- `huiyu/experiments/search_goh_lite_weights.py`
-- `huiyu/experiments/search_full_moe_from_oof.py`
-- `huiyu/experiments/learned_oof_stacking.py`
-
-Submission generation:
-
-- `huiyu/experiments/make_cluster_moe_submissions.py`
-- `huiyu/experiments/make_h_heavy_submissions.py`
-- `huiyu/experiments/stabilize_moe_candidates.py`
 - `huiyu/experiments/stabilize_tcn_candidates.py`
-- `huiyu/experiments/blend_second_place_expert.py`
 
-Reporting:
-
-- `huiyu/experiments/foldwise_oof_report.py`
-
-## 15. Remaining Ideas
-
-Still not implemented:
-
-- Full 5-fold GOH30 OOF.
-- H 12-epoch OOF-lite to more closely match full H training.
-- Clean standalone runner that executes GOH30 + 2nd-place expert + final blend end to end.
-- Optional: recreate 3rd/9th/12th-place predictions as additional LB-verified experts.
-
-## 16. TCN Expert
-
-Motivation:
-
-- Previous PPT-style postprocessing and cluster gating did not transfer to LB.
-- Add a new expert with a different inductive bias instead of reweighting H/cluster heavily.
-- TCN reads short local temporal patterns with dilated Conv1D blocks.
-
-OOF-lite command:
+외부폴드 검증 명령:
 
 ```bash
 .venv-cu128/bin/python huiyu/experiments/goh30_oof_lite.py \
@@ -541,95 +380,73 @@ OOF-lite command:
   --out-dir outputs/goh30_oof_tcn10_cuda
 ```
 
-OOF-lite results:
+외부폴드 검증 결과:
 
-| candidate | OOF hit |
+| 후보 | 검증 적중률 |
 | --- | ---: |
 | TCN | 0.6425 |
 | ODE 90% + TCN 10% | 0.6332 |
 | ODE 95% + TCN 5% | 0.6331 |
-| G15/O75/TCN10 | 0.6331 |
-| ODE-heavy no H | 0.6319 |
 | ODE | 0.6316 |
 
-Conclusion:
+전체 학습:
 
-- TCN is the first new expert with a clear positive OOF signal.
-- It should be blended conservatively with the LB-confirmed ODE-heavy candidate.
+- TCN 5개 시드, 30 에폭
+- 시드3000 묶음 + 시드4000 묶음
+- 총 10개 TCN 모델 평균
 
-Full TCN training:
+제출 결과:
 
-```bash
-.venv-cu128/bin/python huiyu/experiments/train_tcn_submissions.py \
-  --device cuda \
-  --epochs 30 \
-  --seeds 5 \
-  --models-dir models_tcn_e30_s5 \
-  --out-dir outputs/goh30_tcn_e30_s5_submissions
-
-.venv-cu128/bin/python huiyu/experiments/train_tcn_submissions.py \
-  --device cuda \
-  --epochs 30 \
-  --seeds 5 \
-  --seed-offset 4000 \
-  --models-dir models_tcn_e30_s5_seed4000 \
-  --out-dir outputs/goh30_tcn_e30_s5_seed4000_submissions
-```
-
-Stabilized TCN candidates:
-
-Script:
-
-- `huiyu/experiments/stabilize_tcn_candidates.py`
-
-Generated:
-
-- `outputs/goh30_tcn_stable_submissions/confirmed_ode_heavy_975_tcn025.csv`
-- `outputs/goh30_tcn_stable_submissions/confirmed_ode_heavy_950_tcn050.csv`
-- `outputs/goh30_tcn_stable_submissions/confirmed_ode_heavy_900_tcn100.csv`
-- `outputs/goh30_tcn_stable_submissions/confirmed_ode_heavy_850_tcn150.csv`
-
-Shift vs LB-confirmed ODE-heavy:
-
-| candidate | mean shift | p90 shift | max shift | >1cm count |
-| --- | ---: | ---: | ---: | ---: |
-| ODE-heavy 97.5% + avg TCN 2.5% | 0.000028 | 0.000053 | 0.001067 | 0 |
-| ODE-heavy 95% + avg TCN 5% | 0.000057 | 0.000107 | 0.002134 | 0 |
-| ODE-heavy 90% + avg TCN 10% | 0.000114 | 0.000214 | 0.004268 | 0 |
-| ODE-heavy 85% + avg TCN 15% | 0.000170 | 0.000320 | 0.006402 | 0 |
-
-Current TCN submission recommendation:
-
-1. `outputs/goh30_tcn_stable_submissions/confirmed_ode_heavy_900_tcn100.csv`
-2. More conservative: `outputs/goh30_tcn_stable_submissions/confirmed_ode_heavy_950_tcn050.csv`
-
-Submitted TCN result:
-
-| submission | Public | Private |
+| 제출 파일 | 공개 점수 | 비공개 점수 |
 | --- | ---: | ---: |
 | `confirmed_ode_heavy_900_tcn100.csv` | 0.7022 | 0.7030 |
 
-Conclusion:
+결론:
 
-- TCN did not collapse like K8/H-heavy, but it also did not improve over the LB-confirmed ODE-heavy result.
-- Current best confirmed result remains `case02_ode_heavy_g20_o60_h20.csv` at Private 0.7033.
-- Do not spend more limited submissions on TCN 10%.
+- TCN은 외부폴드 검증에서는 좋은 새 전문가처럼 보였다.
+- 하지만 전체 학습 후 리더보드에서는 ODE 강화보다 낮았다.
+- TCN 10%는 더 제출하지 않는 것이 맞다.
 
-## 17. 2nd Place Expert Blend
+## 14. 경량 트랜스포머 전문가
 
-Script:
+구현:
+
+- `huiyu/experiments/goh30_oof_lite.py`
+- 옵션: `--include-transformer`
+
+외부폴드 검증 결과:
+
+| 후보 | 검증 적중률 |
+| --- | ---: |
+| 경량 트랜스포머 | 0.6421 |
+| ODE 90% + 경량 트랜스포머 10% | 0.6332 |
+| ODE 95% + 경량 트랜스포머 5% | 0.6325 |
+| ODE | 0.6316 |
+
+결론:
+
+- 경량 트랜스포머는 TCN과 거의 같은 수준의 외부폴드 검증 신호였다.
+- TCN이 같은 수준의 외부폴드 검증 신호로 리더보드 개선에 실패했기 때문에, 경량 트랜스포머는 전체 학습/제출로 가지 않았다.
+
+## 15. 2등 코드 전문가 블렌딩
+
+스크립트:
 
 - `huiyu/experiments/blend_second_place_expert.py`
 
-Source:
+소스:
 
 - `best_solve/_[private 2nd] 코드 공유.ipynb`
-- The notebook contains compressed base and physics test predictions.
-- Restored final 2nd-place prediction:
-  - Public 0.7022
-  - Private 0.7031
+- 노트북 안에 기본 모델/물리 모델 테스트 예측값이 zlib+base64 형식으로 압축 저장되어 있음
+- 학습 없이 2등 최종 예측 복원 가능
 
-Generated:
+2등 복원 예측 점수:
+
+| 예측 | 공개 점수 | 비공개 점수 |
+| --- | ---: | ---: |
+| 2등 복원 예측 | 0.7022 | 0.7031 |
+
+생성 후보:
 
 - `outputs/second_place_expert_blends/second_place_restored.csv`
 - `outputs/second_place_expert_blends/confirmed_ode_heavy_975_second025.csv`
@@ -637,36 +454,69 @@ Generated:
 - `outputs/second_place_expert_blends/confirmed_ode_heavy_900_second100.csv`
 - `outputs/second_place_expert_blends/confirmed_ode_heavy_850_second150.csv`
 - `outputs/second_place_expert_blends/confirmed_ode_heavy_800_second200.csv`
+- `outputs/second_place_expert_blends/confirmed_ode_heavy_750_second250.csv`
+- `outputs/second_place_expert_blends/confirmed_ode_heavy_700_second300.csv`
 
-Shift vs LB-confirmed ODE-heavy:
+ODE 강화 대비 이동량:
 
-| candidate | mean shift | p90 shift | max shift | >1cm count |
+| 후보 | 평균 이동 | 90% 분위 이동 | 최대 이동 | 1cm 초과 |
 | --- | ---: | ---: | ---: | ---: |
-| 2nd-place restored | 0.001675 | 0.003132 | 0.017793 | 74 |
-| ODE-heavy 97.5% + 2nd 2.5% | 0.000042 | 0.000078 | 0.000445 | 0 |
-| ODE-heavy 95% + 2nd 5% | 0.000084 | 0.000157 | 0.000890 | 0 |
-| ODE-heavy 90% + 2nd 10% | 0.000168 | 0.000313 | 0.001779 | 0 |
-| ODE-heavy 85% + 2nd 15% | 0.000251 | 0.000470 | 0.002669 | 0 |
-| ODE-heavy 80% + 2nd 20% | 0.000335 | 0.000627 | 0.003559 | 0 |
+| 2등 단독 | 0.001675 | 0.003132 | 0.017793 | 74 |
+| 2등 10% | 0.000168 | 0.000313 | 0.001779 | 0 |
+| 2등 20% | 0.000335 | 0.000627 | 0.003559 | 0 |
+| 2등 30% | 0.000503 | 0.000940 | 0.005338 | 0 |
 
-Conclusion:
+제출 결과:
 
-- This is more credible than TCN/Transformer because the 2nd-place expert is LB-verified.
-- However, it is slightly lower than our best confirmed ODE-heavy result, so use only as a small diversification blend.
-- Submitted 20% blend:
-
-| submission | Public | Private |
+| 제출 파일 | 공개 점수 | 비공개 점수 |
 | --- | ---: | ---: |
 | `confirmed_ode_heavy_800_second200.csv` | 0.7034 | 0.7042 |
 
-Current confirmed best:
+결론:
 
-- `outputs/second_place_expert_blends/confirmed_ode_heavy_800_second200.csv`
-- Public 0.7034 / Private 0.7042
+- 2등 전문가 블렌딩이 최종 최고 성과를 만들었다.
+- 2등 자체가 리더보드 검증된 예측이라 TCN/트랜스포머보다 신뢰도가 높았다.
+- 현재 최고는 `ODE 강화 80% + 2등 20%`이다.
 
-Next exploration candidates if submissions remain:
+## 16. 구현 스크립트 목록
 
-1. `outputs/second_place_expert_blends/confirmed_ode_heavy_750_second250.csv`
-2. `outputs/second_place_expert_blends/confirmed_ode_heavy_700_second300.csv`
+핵심 외부폴드 검증 / 예측:
 
-Avoid jumping straight to 40-50% unless submissions are cheap, because 2nd-place restored is slightly weaker than the ODE-heavy base.
+- `huiyu/experiments/goh30_oof_lite.py`
+- `huiyu/experiments/goh30_component_submissions.py`
+- `huiyu/experiments/train_tcn_submissions.py`
+
+탐색 / 전문가 혼합:
+
+- `huiyu/experiments/search_oof_blends.py`
+- `huiyu/experiments/search_cluster_moe.py`
+- `huiyu/experiments/search_goh_lite_weights.py`
+- `huiyu/experiments/search_full_moe_from_oof.py`
+- `huiyu/experiments/learned_oof_stacking.py`
+
+제출 생성:
+
+- `huiyu/experiments/make_cluster_moe_submissions.py`
+- `huiyu/experiments/make_h_heavy_submissions.py`
+- `huiyu/experiments/stabilize_moe_candidates.py`
+- `huiyu/experiments/stabilize_tcn_candidates.py`
+- `huiyu/experiments/blend_second_place_expert.py`
+
+보고:
+
+- `huiyu/experiments/foldwise_oof_report.py`
+
+## 17. 남은 후보
+
+실제 점수 개선 관점에서는 추가 여지가 크지 않다.
+
+가능한 후속 작업:
+
+- 종료된 대회 연습 목적이라면 2등 블렌딩 비율 25%, 30%를 추가 제출해 점수 곡선 확인
+- 3등/9등/12등 코드 예측을 복원하거나 재학습해 추가 리더보드 검증 전문가로 사용
+- GOH30 + 2등 전문가 + 최종 블렌딩을 한 번에 실행하는 단독 실행 스크립트 작성
+
+현재 추천:
+
+- 실전 제출 기준으로는 `confirmed_ode_heavy_800_second200.csv`를 최고 결과로 유지
+- 추가 제출 여유가 있으면 25% 블렌딩, 그다음 30% 블렌딩 순서로 확인
