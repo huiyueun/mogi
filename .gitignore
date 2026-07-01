@@ -1,3 +1,10 @@
 open/
 .ipynb_checkpoints/
 __pycache__/
+.venv*/
+models_goh30/
+models_goh30_smoke/
+models_tcn*/
+outputs/*
+!outputs/experiment_progress.md
+submission_GOH30_smoke.csv
