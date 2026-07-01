@@ -27,6 +27,7 @@
   - `03_top_expert_cause_analysis.md`: 1등/2등 예측 차이가 생긴 원인 가설
   - `04_second_component_analysis.md`: 2등 base/phys/final 구성요소 분해 분석
   - `05_final_ensemble_conclusion.md`: 왜 1등 앙상블에 2등 앙상블을 더했는지 최종 결론
+  - `06_learned_moe_gating_plan.md`: 궤적별 MoE 비율을 학습하는 후속 실험 계획과 실행 명령
 - `huiyu/submissions/`
   - 주요 제출 CSV 로컬 복사본
   - 팀 레포가 무거워지지 않도록 CSV는 git 추적에서 제외
