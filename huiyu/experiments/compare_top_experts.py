@@ -245,6 +245,131 @@ def plot_direction_bars(regime_summary: pd.DataFrame, out_dir: Path) -> None:
     plt.close()
 
 
+def safe_unit(v: np.ndarray) -> np.ndarray:
+    return v / (norm(v)[..., None] + 1e-12)
+
+
+def angle_to_direction(v: np.ndarray, direction: np.ndarray) -> np.ndarray:
+    denom = norm(v) * norm(direction) + 1e-12
+    cos = np.clip((v * direction).sum(axis=1) / denom, -1.0, 1.0)
+    return np.arccos(cos)
+
+
+def behavior_diagnostics(x: np.ndarray, preds: dict[str, np.ndarray], regimes: pd.DataFrame) -> pd.DataFrame:
+    last = x[:, -1].astype(np.float64)
+    prev = x[:, -2].astype(np.float64)
+    last_vel = last - prev
+    last_dir = safe_unit(last_vel)
+    cv = last + 2.0 * (last - prev)
+
+    original_vec = preds["original"].astype(np.float64) - last
+    second_vec = preds["second"].astype(np.float64) - last
+    ode_vec_from_original = preds["ode_heavy"].astype(np.float64) - preds["original"].astype(np.float64)
+    second_vec_from_original = preds["second"].astype(np.float64) - preds["original"].astype(np.float64)
+
+    original_step = norm(original_vec)
+    second_step = norm(second_vec)
+    original_forward = (original_vec * last_dir).sum(axis=1)
+    second_forward = (second_vec * last_dir).sum(axis=1)
+    original_turn_angle = angle_to_direction(original_vec, last_vel)
+    second_turn_angle = angle_to_direction(second_vec, last_vel)
+
+    original_z_move = np.abs(preds["original"][:, 2].astype(np.float64) - last[:, 2])
+    second_z_move = np.abs(preds["second"][:, 2].astype(np.float64) - last[:, 2])
+    original_z_cv_resid = np.abs(preds["original"][:, 2].astype(np.float64) - cv[:, 2])
+    second_z_cv_resid = np.abs(preds["second"][:, 2].astype(np.float64) - cv[:, 2])
+
+    align_denom = norm(ode_vec_from_original) * norm(second_vec_from_original) + 1e-12
+    ode_second_cos = (ode_vec_from_original * second_vec_from_original).sum(axis=1) / align_denom
+    ode_second_cos = np.clip(ode_second_cos, -1.0, 1.0)
+
+    regime_cols = [
+        "all",
+        "high_speed",
+        "hard_turn_regime",
+        "recent_turn_regime",
+        "high_acc",
+        "high_noise",
+        "vertical_change_regime",
+        "low_straightness",
+    ]
+    rows = []
+    for reg in regime_cols:
+        mask = regimes[reg].to_numpy(bool)
+        rows.append(
+            {
+                "regime": reg,
+                "count": int(mask.sum()),
+                "second_longer_step_rate": float((second_step[mask] > original_step[mask]).mean()),
+                "mean_step_original": float(original_step[mask].mean()),
+                "mean_step_second": float(second_step[mask].mean()),
+                "mean_step_delta_second_minus_original": float((second_step - original_step)[mask].mean()),
+                "second_more_forward_rate": float((second_forward[mask] > original_forward[mask]).mean()),
+                "mean_forward_delta_second_minus_original": float((second_forward - original_forward)[mask].mean()),
+                "second_more_turn_rate": float((second_turn_angle[mask] > original_turn_angle[mask]).mean()),
+                "mean_turn_angle_original_deg": float(np.degrees(original_turn_angle[mask]).mean()),
+                "mean_turn_angle_second_deg": float(np.degrees(second_turn_angle[mask]).mean()),
+                "mean_turn_angle_delta_deg": float(np.degrees(second_turn_angle - original_turn_angle)[mask].mean()),
+                "second_smaller_z_move_rate": float((second_z_move[mask] < original_z_move[mask]).mean()),
+                "mean_abs_z_move_original": float(original_z_move[mask].mean()),
+                "mean_abs_z_move_second": float(second_z_move[mask].mean()),
+                "mean_abs_z_move_delta_second_minus_original": float((second_z_move - original_z_move)[mask].mean()),
+                "second_closer_to_cv_z_rate": float((second_z_cv_resid[mask] < original_z_cv_resid[mask]).mean()),
+                "mean_abs_z_cv_resid_original": float(original_z_cv_resid[mask].mean()),
+                "mean_abs_z_cv_resid_second": float(second_z_cv_resid[mask].mean()),
+                "ode_second_same_direction_rate": float((ode_second_cos[mask] > 0.0).mean()),
+                "ode_second_strong_same_direction_rate": float((ode_second_cos[mask] > 0.5).mean()),
+                "mean_ode_second_cos": float(ode_second_cos[mask].mean()),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def plot_behavior_diagnostics(diag: pd.DataFrame, out_dir: Path) -> None:
+    rows = diag[~diag["regime"].eq("all")].copy()
+    x = np.arange(len(rows))
+
+    plt.figure(figsize=(10, 5))
+    plt.bar(x, rows["mean_turn_angle_delta_deg"])
+    plt.axhline(0.0, color="black", lw=1)
+    plt.xticks(x, rows["regime"], rotation=35, ha="right")
+    plt.ylabel("Mean angle delta, second - original (deg)")
+    plt.title("Does second turn more or less than original?")
+    plt.tight_layout()
+    plt.savefig(out_dir / "behavior_turn_angle_delta_by_regime.png", dpi=160)
+    plt.close()
+
+    plt.figure(figsize=(10, 5))
+    plt.bar(x, rows["mean_step_delta_second_minus_original"])
+    plt.axhline(0.0, color="black", lw=1)
+    plt.xticks(x, rows["regime"], rotation=35, ha="right")
+    plt.ylabel("Mean step length delta, second - original")
+    plt.title("Does second predict farther or shorter?")
+    plt.tight_layout()
+    plt.savefig(out_dir / "behavior_step_delta_by_regime.png", dpi=160)
+    plt.close()
+
+    plt.figure(figsize=(10, 5))
+    plt.bar(x, rows["mean_abs_z_move_delta_second_minus_original"])
+    plt.axhline(0.0, color="black", lw=1)
+    plt.xticks(x, rows["regime"], rotation=35, ha="right")
+    plt.ylabel("Mean abs z movement delta, second - original")
+    plt.title("Does second stabilize z movement?")
+    plt.tight_layout()
+    plt.savefig(out_dir / "behavior_z_move_delta_by_regime.png", dpi=160)
+    plt.close()
+
+    plt.figure(figsize=(10, 5))
+    plt.bar(x, rows["mean_ode_second_cos"])
+    plt.axhline(0.0, color="black", lw=1)
+    plt.xticks(x, rows["regime"], rotation=35, ha="right")
+    plt.ylabel("Mean cosine")
+    plt.title("Are ODE-heavy and second shifts aligned from original?")
+    plt.tight_layout()
+    plt.savefig(out_dir / "behavior_ode_second_alignment_by_regime.png", dpi=160)
+    plt.close()
+
+
 def plot_case(case_id: str, traj: np.ndarray, points: dict[str, np.ndarray], out_path: Path) -> None:
     colors = {
         "original": "#1f77b4",
@@ -328,6 +453,8 @@ def main() -> None:
     sample.to_csv(args.out_dir / "per_sample_differences.csv", index=False)
     summary.to_csv(args.out_dir / "pairwise_summary.csv", index=False)
     regime_summary.to_csv(args.out_dir / "pairwise_by_regime.csv", index=False)
+    diag = behavior_diagnostics(x_test, preds, feat)
+    diag.to_csv(args.out_dir / "behavior_diagnostics_by_regime.csv", index=False)
 
     top = make_top_plots(ids, x_test, preds, sample, args.out_dir, args.top_n)
     top.to_csv(args.out_dir / f"top{args.top_n}_original_vs_second.csv", index=False)
@@ -335,9 +462,11 @@ def main() -> None:
     plot_hist(sample, args.out_dir)
     plot_regime_bars(regime_summary, args.out_dir)
     plot_direction_bars(regime_summary, args.out_dir)
+    plot_behavior_diagnostics(diag, args.out_dir)
 
     print("wrote", args.out_dir)
     print(summary.to_string(index=False))
+    print(diag.to_string(index=False))
 
 
 if __name__ == "__main__":
