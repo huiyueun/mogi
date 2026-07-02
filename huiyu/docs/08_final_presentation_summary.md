@@ -33,6 +33,31 @@ final =
 - 2등 phys는 회전물리 기반으로 1등 ODE-heavy와 다른 방향의 보정을 제공한다.
 - 단순히 모델 수를 늘린 것이 아니라, 서로 다른 오류를 내는 전문가를 섞었기 때문에 점수가 올랐다.
 
+## 1-1. 최종 expert별 특징
+
+최종 비율은 단순히 점수가 좋았던 파일 두 개를 평균낸 것이 아니라, 성향이 다른 5개 expert를 다음 비율로 배치한 구조로 볼 수 있다.
+
+| 최종 expert | 최종 비율 | 원래 소속 | 역할 | 비율 의미 |
+| --- | ---: | --- | --- | --- |
+| 1등 GRU | 10% | GOH30 | 시퀀스 패턴, 데이터 기반 보정 | ODE 중심 예측이 과하게 물리식에 치우치지 않게 보조 |
+| 1등 ODE/RK | 30% | GOH30 | 최근 속도/가속/회전 변화를 반영하는 동역학 expert | 1등 내부에서 private이 가장 좋았던 핵심 축 |
+| 1등 H | 10% | GOH30 | 물리 prior 기반 보조 expert | GRU/ODE와 다른 물리 신호를 약하게 유지 |
+| 2등 base | 30% | 2등 코드 | 보수적 smoothing, z 안정화 | 급회전/고노이즈에서 덜 꺾는 안정화 축 |
+| 2등 phys | 20% | 2등 코드 | 회전물리 기반 보정, ODE-heavy와 낮은 상관 | 최종 개선에서 중요했던 diversity 축 |
+
+따라서 최종 모델의 성격은 다음처럼 볼 수 있다.
+
+```text
+동역학 추종 40% = 1등 ODE/RK 30% + 1등 H 일부
+데이터 기반 보정 10% = 1등 GRU
+보수적 smoothing 30% = 2등 base
+회전물리 diversity 20% = 2등 phys
+```
+
+발표에서는 “1등 50% + 2등 50%”보다 다음 문장이 더 정확하다.
+
+> 최근 운동 변화를 강하게 따라가는 1등 동역학 계열과, 불안정한 궤적을 보수적으로 누르는 2등 base, 그리고 1등과 다른 방향의 회전물리 expert를 균형 있게 섞은 구조다.
+
 ## 2. 점수 흐름
 
 | 제출 | Public | Private | 해석 |
@@ -179,7 +204,39 @@ second_final = 0.60 * second_base + 0.40 * second_phys
 - 60%부터는 second_final 쪽으로 너무 많이 이동해서 일부 샘플이 다시 손해를 봤다.
 - 50%는 ODE-heavy의 강한 기본 예측과 2등의 보수적/물리적 보정을 가장 균형 있게 섞은 지점으로 보인다.
 
-## 7. 실패한 실험들이 준 힌트
+## 7. 샘플 궤적으로 보는 1등과 2등의 차이
+
+아래 그림은 1등과 2등의 차이가 큰 대표 test 샘플을 최종 50:50 기준으로 다시 그린 것이다.
+
+색상 의미:
+
+- 검은 선: 과거 관측 궤적
+- 파란 점: GOH30 원본
+- 주황 점: ODE-heavy
+- 초록 점: 2등 final
+- 빨간 점: 최종 50:50
+
+![대표 궤적 샘플 모음](../figures/final_presentation/trajectory_cases/trajectory_case_contact_sheet_final50.png)
+
+개별 샘플:
+
+| 샘플 | 그림 | 볼 점 |
+| --- | --- | --- |
+| TEST_01506 | ![TEST_01506](../figures/final_presentation/trajectory_cases/001_TEST_01506_final50.png) | 2등 final이 ODE-heavy와 다른 방향으로 예측을 당기는 대표 케이스 |
+| TEST_08881 | ![TEST_08881](../figures/final_presentation/trajectory_cases/002_TEST_08881_final50.png) | xy 방향 차이와 z축 예측 차이를 함께 확인 |
+| TEST_06159 | ![TEST_06159](../figures/final_presentation/trajectory_cases/003_TEST_06159_final50.png) | 궤적 변화가 큰 구간에서 최종 50:50이 중간 지점으로 이동 |
+| TEST_09000 | ![TEST_09000](../figures/final_presentation/trajectory_cases/004_TEST_09000_final50.png) | ODE-heavy와 2등 final의 방향 차이가 뚜렷한 케이스 |
+| TEST_08250 | ![TEST_08250](../figures/final_presentation/trajectory_cases/005_TEST_08250_final50.png) | 2등의 보수적 이동과 z 안정화 성향 확인 |
+| TEST_05754 | ![TEST_05754](../figures/final_presentation/trajectory_cases/006_TEST_05754_final50.png) | 최종 50:50이 ODE-heavy에서 second 방향으로 충분히 이동한 케이스 |
+
+샘플 그림에서 확인할 핵심:
+
+- 대부분의 경우 최종 50:50은 ODE-heavy와 second_final 사이에 놓인다.
+- ODE-heavy가 최근 움직임을 따라 더 적극적으로 예측하는 반면, second_final은 일부 급회전/고노이즈 구간에서 더 보수적인 위치를 제안한다.
+- 20% blend는 이 차이를 약하게만 반영했지만, 50% blend는 실제 좌표를 눈에 보일 정도로 중간 지점까지 이동시킨다.
+- 이 문제는 hit 경계 근처 샘플이 중요하므로, 눈으로는 작은 이동이라도 점수에는 크게 작용할 수 있다.
+
+## 8. 실패한 실험들이 준 힌트
 
 처음에는 PPT 아이디어와 학습 전/후처리 아이디어를 여러 방향으로 적용했다.
 
@@ -200,7 +257,7 @@ second_final = 0.60 * second_base + 0.40 * second_phys
 - 우리가 추가한 high_speed, high_noise, hard_turn, vertical_change 같은 regime은 모델이 이미 간접적으로 보고 있는 신호였을 가능성이 크다.
 - 그래서 feature를 더 넣는 것보다, 아예 다른 inductive bias를 가진 외부 expert를 추가하는 쪽이 더 효과적이었다.
 
-## 8. Learned MoE gating은 왜 최종 선택이 아니었나
+## 9. Learned MoE gating은 왜 최종 선택이 아니었나
 
 샘플마다 2등 비율을 다르게 선택하는 learned gating도 시도했다.
 
@@ -226,7 +283,7 @@ OOF에서는 oracle grid가 높게 나왔다.
 - 더 중요한 제약은 train에서 OOF로 쓸 수 있었던 2등 expert가 `second_phys`이고, 실제 제출에서는 `second_final`을 썼다는 점이다.
 - 따라서 최종 제출 기준으로는 단순하고 검증된 fixed 50%가 더 합리적이었다.
 
-## 9. 최종 발표용 스토리라인
+## 10. 최종 발표용 스토리라인
 
 발표는 다음 흐름으로 정리하면 자연스럽다.
 
@@ -241,13 +298,14 @@ OOF에서는 oracle grid가 높게 나왔다.
 9. 2등 내부 phys 비율을 줄이면 성능이 떨어져, 회전물리 expert가 실제로 중요했음을 확인했다.
 10. 최종적으로 `1등 GRU 10% + 1등 ODE/RK 30% + 1등 H 10% + 2등 base 30% + 2등 phys 20%` 구조가 가장 타당한 결론이다.
 
-## 10. 발표 장표에 넣으면 좋은 그림
+## 11. 발표 장표에 넣으면 좋은 그림
 
 필수:
 
 - `submission_score_progression.png`: 전체 점수 흐름
 - `final_expanded_composition.png`: 최종 5개 expert 비율
 - `second_ratio_score_curve.png`: 왜 50%인지
+- `trajectory_case_contact_sheet_final50.png`: 실제 궤적 샘플에서 최종 50:50이 어디로 이동했는지
 - `component_turn_angle_delta_by_regime.png`: 2등이 어떤 구간에서 덜 꺾는지
 - `component_ode_alignment_by_regime.png`: 2등 phys가 왜 다른 expert인지
 
@@ -258,6 +316,6 @@ OOF에서는 oracle grid가 높게 나왔다.
 - `candidate_turn_delta_vs_fixed50.png`: 50% 주변 fine blend 비교
 - `candidate_z_delta_vs_fixed50.png`: 2등 내부 base/phys 조절 비교
 
-## 11. 최종 한 줄 결론
+## 12. 최종 한 줄 결론
 
 > GOH30 내부 feature나 학습 전 보정은 이미 1등 코드가 많은 신호를 사용하고 있어 개선 폭이 작았고, 실제 개선은 GOH30과 다른 오류 구조를 가진 2등 `base + 회전물리` 외부 전문가를 50%까지 섞으면서 나왔다. 최종 비율은 제출 결과와 궤적 분석 모두에서 `1등 ODE-heavy 50% + 2등 base 30% + 2등 phys 20%`가 가장 균형 잡힌 선택으로 확인됐다.
